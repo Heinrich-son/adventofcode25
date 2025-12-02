@@ -8,7 +8,12 @@ import (
 func main() {
 	args := os.Args
 	fmt.Println(os.Args)
-	runChallenge(args[1])
+
+	if len(args) > 1 {
+		runChallenge(args[1])
+	} else {
+		runChallenge("-1")
+	}
 }
 
 func runChallenge(input string) {
@@ -16,6 +21,6 @@ func runChallenge(input string) {
 	case "1":
 		runC1()
 	default:
-		fmt.Println("No corresponding Challenge found. Exiting")
+		runC2()
 	}
 }

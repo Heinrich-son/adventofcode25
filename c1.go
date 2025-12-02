@@ -8,7 +8,7 @@ import (
 
 func runC1() {
 	fmt.Println("Running Challenge 1")
-	rotationList := readFile[[]rotation]("c1.txt", mapper)
+	rotationList := readFile[[]rotation]("c1.txt", mapToRotation)
 	positionList := dial(rotationList)
 	password := countZeros(positionList)
 	fmt.Println("Solution 1: ", password)
@@ -22,7 +22,7 @@ type rotation struct {
 	count     int
 }
 
-func mapper(content []byte) []rotation {
+func mapToRotation(content []byte) []rotation {
 	NEWLINE := '\n'
 
 	buf := [10]rune{}
