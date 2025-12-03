@@ -20,7 +20,11 @@ func runChallenge(input string) {
 	switch input {
 	case "1":
 		runC1()
-	default:
+	case "2":
 		runC2()
+	case "3":
+		runC3()
+	default:
+		runC3()
 	}
 }
