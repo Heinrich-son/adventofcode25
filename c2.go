@@ -10,7 +10,7 @@ import (
 func runC2() {
 	fmt.Println("Running Challenge 2")
 
-	intervalList := readFile[[]interval]("c2.txt", mapToIntervals)
+	intervalList := readFile("c2.txt", mapToIntervals)
 	invalidSum := execC2(intervalList, testPattern)
 	fmt.Println("Solution 1: ", invalidSum)
 
@@ -71,6 +71,9 @@ func createInterval(buf *[50]rune) interval {
 	endString := string(buf[dashIndex+1 : endIndex])
 
 	start, err := strconv.Atoi(startString)
+	if err != nil {
+		panic(err)
+	}
 	end, err := strconv.Atoi(endString)
 	if err != nil {
 		panic(err)
@@ -106,7 +109,7 @@ func testPattern(id int) bool {
 
 	middle := len(idRune) / 2
 	first := string(idRune[0:middle])
-	second := string(idRune[middle:len(idRune)])
+	second := string(idRune[middle:])
 
 	return first == second
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func runC3() {
-	batteries := readFile[[][]rune]("c3.txt", mapToBatteries)
+	batteries := readFile("c3.txt", mapToBatteries)
 	joltage := execC3(batteries)
 	fmt.Println("Solution 1: ", joltage)
 	joltageTwo := execC3Two(batteries)
@@ -50,7 +50,7 @@ func execC3(batterieList [][]rune) (acc int) {
 			return n == msrOne
 		})
 
-		subBatterieTwo := batterie[indexOne+1 : len(batterie)]
+		subBatterieTwo := batterie[indexOne+1:]
 		msrTwo := getMsr(subBatterieTwo)
 
 		joltage, err := strconv.Atoi(string([]rune{msrOne, msrTwo}))
@@ -110,7 +110,7 @@ func calculateMsrList(batterieList []rune, depth int) []rune {
 	msr := getMsr(subBatterieList)
 	msrIndex := getMsrIndex(msr, batterieList)
 
-	nextBatterieList := batterieList[msrIndex+1 : len(batterieList)]
+	nextBatterieList := batterieList[msrIndex+1:]
 
 	msrList := []rune{msr}
 	if depth == 11 {

@@ -11,8 +11,8 @@ func runC4() {
 	_, forkable := execC4(grid)
 	fmt.Println("Solution 1: ", forkable)
 
-	gridMarkedTwo, forkableTwo := execC4Two(gridTwo)
-	printGrid(gridMarkedTwo)
+	_, forkableTwo := execC4Two(gridTwo)
+	//printGrid(gridMarkedTwo)
 	fmt.Println("Solution 2: ", forkableTwo)
 }
 

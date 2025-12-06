@@ -26,7 +26,9 @@ func runChallenge(input string) {
 		runC3()
 	case "4":
 		runC4()
+	case "5":
+		runC5()
 	default:
-		runC4()
+		runC5()
 	}
 }
