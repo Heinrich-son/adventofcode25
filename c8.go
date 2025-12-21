@@ -23,12 +23,12 @@ func printPairList(pairList []pairs) {
 	}
 }
 
-func mapToCoordinates(content []byte) []coordinates {
+func mapToCoordinates(content []byte) []coordinates3D {
 	NEWLINE := "\n"
 	COMMA := ","
 
 	lines := strings.Split(string(content), NEWLINE)
-	coordinateList := make([]coordinates, 0, len(lines))
+	coordinateList := make([]coordinates3D, 0, len(lines))
 	for _, line := range lines {
 		coordinate := toCoordinate(strings.Split(line, COMMA))
 		coordinateList = append(coordinateList, coordinate)
@@ -37,7 +37,7 @@ func mapToCoordinates(content []byte) []coordinates {
 	return coordinateList
 }
 
-func toCoordinate(line []string) coordinates {
+func toCoordinate(line []string) coordinates3D {
 	if len(line) != 3 {
 		panic("Line has to have 3 elements only")
 	}
@@ -46,28 +46,28 @@ func toCoordinate(line []string) coordinates {
 	y, _ := strconv.Atoi(line[1])
 	z, _ := strconv.Atoi(line[2])
 
-	return coordinates{x, y, z}
+	return coordinates3D{x, y, z}
 }
 
-type coordinates struct {
+type coordinates3D struct {
 	x int
 	y int
 	z int
 }
 
-func (c coordinates) hash() int {
+func (c coordinates3D) hash() int {
 	s := strconv.Itoa(c.x) + strconv.Itoa(c.y) + strconv.Itoa(c.z)
 	h, _ := strconv.Atoi(s)
 	return h
 }
 
 type pairs struct {
-	a        coordinates
-	b        coordinates
+	a        coordinates3D
+	b        coordinates3D
 	distance float64
 }
 
-func calculateAllDistances(coordinateList []coordinates) []pairs {
+func calculateAllDistances(coordinateList []coordinates3D) []pairs {
 	pairList := make([]pairs, 0, len(coordinateList)/2)
 	for i := range coordinateList {
 		for j := i + 1; j < len(coordinateList); j++ {
@@ -85,7 +85,7 @@ func calculateAllDistances(coordinateList []coordinates) []pairs {
 	})
 }
 
-func calculateDistance(a, b coordinates) float64 {
+func calculateDistance(a, b coordinates3D) float64 {
 	d1 := math.Pow(float64(a.x-b.x), 2)
 	d2 := math.Pow(float64(a.y-b.y), 2)
 	d3 := math.Pow(float64(a.z-b.z), 2)
@@ -95,7 +95,7 @@ func calculateDistance(a, b coordinates) float64 {
 }
 
 func collectToCircuit(pairList []pairs, amountOfPairs int) {
-	circuitMap := make(map[int][]coordinates, len(pairList))
+	circuitMap := make(map[int][]coordinates3D, len(pairList))
 
 	if len(pairList) < amountOfPairs {
 		panic("Intended amount of pairs exceeds actual amount of pairs")
@@ -118,7 +118,7 @@ func collectToCircuit(pairList []pairs, amountOfPairs int) {
 			updateEntry(circuitMap, bSlice, pair.a)
 		}
 		if !aInMap && !bInMap {
-			newSlice := append(make([]coordinates, 0, 10), pair.a, pair.b)
+			newSlice := append(make([]coordinates3D, 0, 10), pair.a, pair.b)
 			circuitMap[pair.a.hash()] = newSlice
 			circuitMap[pair.b.hash()] = newSlice
 
@@ -135,7 +135,7 @@ func collectToCircuit(pairList []pairs, amountOfPairs int) {
 	fmt.Println("Solution 1:", largestThree)
 }
 
-func mergeEntries(circuitMap map[int][]coordinates, a coordinates, b coordinates) {
+func mergeEntries(circuitMap map[int][]coordinates3D, a coordinates3D, b coordinates3D) {
 	aSlice := circuitMap[a.hash()]
 	bSlice := circuitMap[b.hash()]
 	merged := append(aSlice, bSlice...)
@@ -144,15 +144,15 @@ func mergeEntries(circuitMap map[int][]coordinates, a coordinates, b coordinates
 	}
 }
 
-func updateEntry(circuitMap map[int][]coordinates, currentSlice []coordinates, c coordinates) {
+func updateEntry(circuitMap map[int][]coordinates3D, currentSlice []coordinates3D, c coordinates3D) {
 	newSlice := append(currentSlice, c)
 	for _, coordinate := range newSlice {
 		circuitMap[coordinate.hash()] = newSlice
 	}
 }
 
-func uniqueSet(circuitMap map[int][]coordinates) [][]coordinates {
-	circuitSet := make(map[int][]coordinates)
+func uniqueSet(circuitMap map[int][]coordinates3D) [][]coordinates3D {
+	circuitSet := make(map[int][]coordinates3D)
 	for _, coordinateList := range circuitMap {
 		acc := 0
 		for _, coordinate := range coordinateList {
@@ -161,7 +161,7 @@ func uniqueSet(circuitMap map[int][]coordinates) [][]coordinates {
 		circuitSet[acc] = coordinateList
 	}
 
-	circuitSlice := slices.SortedFunc(maps.Values(circuitSet), func(a, b []coordinates) int {
+	circuitSlice := slices.SortedFunc(maps.Values(circuitSet), func(a, b []coordinates3D) int {
 		return len(b) - len(a)
 	})
 
@@ -169,7 +169,7 @@ func uniqueSet(circuitMap map[int][]coordinates) [][]coordinates {
 }
 
 func collectToCircuitTwo(pairList []pairs, amountOfBoxes int) {
-	circuitMap := make(map[int][]coordinates, len(pairList))
+	circuitMap := make(map[int][]coordinates3D, len(pairList))
 
 	for _, pair := range pairList {
 		aSlice, aInMap := circuitMap[pair.a.hash()]
@@ -196,7 +196,7 @@ func collectToCircuitTwo(pairList []pairs, amountOfBoxes int) {
 			}
 		}
 		if !aInMap && !bInMap {
-			newSlice := append(make([]coordinates, 0, 10), pair.a, pair.b)
+			newSlice := append(make([]coordinates3D, 0, 10), pair.a, pair.b)
 			circuitMap[pair.a.hash()] = newSlice
 			circuitMap[pair.b.hash()] = newSlice
 			if checkIsSingleCircuit(uniqueSet(circuitMap), amountOfBoxes, pair) {
@@ -207,7 +207,7 @@ func collectToCircuitTwo(pairList []pairs, amountOfBoxes int) {
 
 }
 
-func checkIsSingleCircuit(coordinate [][]coordinates, amountOfBoxes int, pair pairs) bool {
+func checkIsSingleCircuit(coordinate [][]coordinates3D, amountOfBoxes int, pair pairs) bool {
 	if len(coordinate) == 1 {
 		if len(coordinate[0]) == amountOfBoxes {
 			doubleX := pair.a.x * pair.b.x
