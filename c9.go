@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
 )
 
+// damn... what a mess
+
 func runC9() {
 	coordinateList := readFile("c9.txt", mapToTileCoordinate)
 	areas := calculateAllTileAreas(coordinateList)
-	fmt.Println(areas[0])
+	fmt.Println("Solution 1: ", areas[0])
 	execC9Two(coordinateList)
 }
 
@@ -36,6 +39,11 @@ func mapToTileCoordinate(content []byte) []coordinate {
 type coordinate struct {
 	x int
 	y int
+}
+
+type coordinatePair struct {
+	a coordinate
+	b coordinate
 }
 
 func (c coordinate) equal(o coordinate) bool {
@@ -127,8 +135,7 @@ func maxYTile(coordinateList []coordinate) int {
 	return maxX.y
 }
 
-// I don't know any proper algorithm to make it "fast", so drawning it is
-// Alright let's leave drawing, I literally don't have enough RAM
+// so this became an utter mess
 
 func execC9Two(coordinateList []coordinate) {
 	yCompressed, xCompressed := compressCoordinates(coordinateList)
@@ -140,10 +147,13 @@ func execC9Two(coordinateList []coordinate) {
 
 	draw(compressedList, append(horizontalRanges, verticalRanges...))
 
-	/*areas := calculateAllValidTileAreas(coordinateList, horizontalRanges, verticalRanges)
-	fmt.Println(areas[0:5])*/
+	pairs := calculateAllValidTileAreasV2(compressedList, horizontalRanges, verticalRanges)
+	areas := calculateFromAllPairs(pairs, yCompressed, xCompressed)
+	fmt.Println(areas[0])
 }
 
+// creates two maps with y and x each as key with all coordinates falling under each values (as slice)
+// all entries are sorted in ascending order
 func createXYMaps(coordinateList []coordinate) (map[int][]coordinate, map[int][]coordinate) {
 	yMap := make(map[int][]coordinate, 100)
 	xMap := make(map[int][]coordinate, 100)
@@ -178,7 +188,7 @@ func createXYMaps(coordinateList []coordinate) (map[int][]coordinate, map[int][]
 	return yMap, xMap
 }
 
-// calculate horizontal intervalls
+// calculates all horizontal edges as a list of coordinates excluding the corners
 func createHorizontalTileRanges(coordinateMap map[int][]coordinate) []coordinate {
 	yRanges := make([]coordinate, 0, 500)
 
@@ -197,7 +207,7 @@ func createHorizontalTileRanges(coordinateMap map[int][]coordinate) []coordinate
 	return yRanges
 }
 
-// calculate vertical intervalls
+// calculate all vertical edges as a list of coordinates excluding the corners
 func createVerticalTileRanges(coordinateMap map[int][]coordinate) []coordinate {
 	xRanges := make([]coordinate, 0, 500)
 
@@ -216,37 +226,6 @@ func createVerticalTileRanges(coordinateMap map[int][]coordinate) []coordinate {
 	return xRanges
 }
 
-// calculate coordinates of two other corners
-func calculateAllValidTileAreas(coordinateList []coordinate, horizontalRanges []coordinate, verticalRanges []coordinate) []int {
-	areas := make([]int, 0, len(coordinateList))
-	coordinateBorders := slices.Concat(coordinateList, horizontalRanges, verticalRanges)
-
-	fmt.Println(len(coordinateList))
-	for i := range coordinateList {
-		if i%50 == 0 {
-			fmt.Println("at ", i)
-		}
-		for j := i + 1; j < len(coordinateList); j++ {
-
-			x1, y1 := coordinateList[i].x, coordinateList[i].y
-			x2, y2 := coordinateList[j].x, coordinateList[j].y
-
-			mCoordinate := coordinate{x1, y2}
-			nCoordinate := coordinate{x2, y1}
-
-			if verifyOtherCorners(mCoordinate, nCoordinate, coordinateBorders...) {
-				areas = append(areas, calculateTileArea(x1, y1, x2, y2))
-			}
-		}
-	}
-
-	slices.SortFunc(areas, func(a, b int) int {
-		return b - a
-	})
-
-	return areas
-}
-
 type validCoordinateMap struct {
 	hasTopBorder    bool
 	hasBottomBorder bool
@@ -256,40 +235,6 @@ type validCoordinateMap struct {
 
 func (v validCoordinateMap) isWithinBorder() bool {
 	return v.hasTopBorder && v.hasBottomBorder && v.hasLeftBorder && v.hasRightBorder
-}
-
-func verifyOtherCorners(m coordinate, n coordinate, coordinateBorders ...coordinate) bool {
-	if m.x == n.x || m.y == n.y {
-		return true
-	}
-
-	mValid := false
-	nValid := false
-
-	mValidationMap := validCoordinateMap{}
-	nValidationMap := validCoordinateMap{}
-
-	for _, coordinate := range coordinateBorders {
-		updateBorders(&mValidationMap, m, coordinate)
-		updateBorders(&nValidationMap, n, coordinate)
-
-		if m.equal(coordinate) {
-			mValid = true
-		}
-		if n.equal(coordinate) {
-			nValid = true
-		}
-
-		if mValid && nValid {
-			break
-		}
-	}
-
-	if (mValid || mValidationMap.isWithinBorder()) && (nValid || nValidationMap.isWithinBorder()) {
-		return true
-	}
-
-	return false
 }
 
 func updateBorders(validationMap *validCoordinateMap, point coordinate, border coordinate) {
@@ -314,9 +259,6 @@ func updateBorders(validationMap *validCoordinateMap, point coordinate, border c
 	}
 }
 
-// Alright new try
-
-// 1. Compress
 func compressCoordinates(coordinateList []coordinate) (map[int]int, map[int]int) {
 	yMap := make(map[int]int, len(coordinateList))
 	xMap := make(map[int]int, len(coordinateList))
@@ -379,6 +321,119 @@ func unmapCoordinate(coor coordinate, yMap, xMap map[int]int) coordinate {
 	return coordinate{x, y}
 }
 
-// 2. Draw attempt
+func createSquareList(coor1 coordinate, coor2 coordinate) []coordinate {
+	var xSmall, xBig, ySmall, yBig int
+	if coor1.x < coor2.x {
+		xSmall = coor1.x
+		xBig = coor2.x
+	} else {
+		xSmall = coor2.x
+		xBig = coor1.x
+	}
 
-// 3. Intersection attempt
+	if coor1.y < coor2.y {
+		ySmall = coor1.y
+		yBig = coor2.y
+	} else {
+		ySmall = coor2.y
+		yBig = coor1.y
+	}
+
+	squareMap := make(map[coordinate]bool, (xBig-xSmall)*2+(yBig-ySmall)*2)
+	squareMap[coor1] = true
+	squareMap[coor2] = true
+
+	for i := ySmall; i <= yBig; i++ {
+		squareMap[coordinate{xSmall, i}] = true
+		squareMap[coordinate{xBig, i}] = true
+	}
+
+	for j := xSmall; j <= xBig; j++ {
+		squareMap[coordinate{j, ySmall}] = true
+		squareMap[coordinate{j, yBig}] = true
+	}
+
+	squareIter := maps.Keys(squareMap)
+
+	squareList := slices.SortedFunc(squareIter, func(a, b coordinate) int {
+		i := a.x - b.x
+		if i == 0 {
+			return a.y - b.y
+		} else {
+			return i
+		}
+	})
+
+	return squareList
+}
+
+func calculateAllValidTileAreasV2(coordinateList []coordinate, horizontalRanges []coordinate, verticalRanges []coordinate) []coordinatePair {
+	pairs := make([]coordinatePair, 0, len(coordinateList)/2)
+	coordinateBorders := slices.Concat(coordinateList, horizontalRanges, verticalRanges)
+
+	for i := range coordinateList {
+		if i%50 == 0 {
+			fmt.Println("Loop at", i, "from", len(coordinateList))
+		}
+		for j := i + 1; j < len(coordinateList); j++ {
+			squareList := createSquareList(coordinateList[i], coordinateList[j])
+
+			allEdgesValid := true
+			for _, s := range squareList {
+				sIsValid := verifyOtherCornersV2(s, coordinateBorders...)
+				if !sIsValid {
+					allEdgesValid = false
+					break
+				}
+			}
+
+			if allEdgesValid {
+				pairs = append(pairs, coordinatePair{coordinateList[i], coordinateList[j]})
+			}
+		}
+	}
+
+	return pairs
+}
+
+func verifyOtherCornersV2(m coordinate, coordinateBorders ...coordinate) bool {
+	mValid := false
+
+	mValidationMap := validCoordinateMap{}
+
+	for _, coordinate := range coordinateBorders {
+		updateBorders(&mValidationMap, m, coordinate)
+
+		if m.equal(coordinate) {
+			mValid = true
+		}
+
+		if mValid {
+			break
+		}
+	}
+
+	if mValid || mValidationMap.isWithinBorder() {
+		return true
+	}
+
+	return false
+}
+
+func calculateFromAllPairs(coodinatePairList []coordinatePair, yMap, xMap map[int]int) []int {
+	areas := make([]int, 0, len(coodinatePairList))
+
+	for _, pair := range coodinatePairList {
+		rA := unmapCoordinate(pair.a, yMap, xMap)
+		rB := unmapCoordinate(pair.b, yMap, xMap)
+
+		area := calculateTileArea(rA.x, rA.y, rB.x, rB.y)
+		areas = append(areas, area)
+	}
+
+	slices.SortFunc(areas, func(a, b int) int {
+		return b - a
+	})
+
+	return areas
+}
