@@ -104,9 +104,11 @@ func draw(coordinateList []coordinate, rangeList []coordinate) {
 		drawingBoard[r.y][r.x] = 'X'
 	}
 
-	for _, line := range drawingBoard {
+	/*for _, line := range drawingBoard {
 		fmt.Println(string(line))
-	}
+	}*/
+
+	writeTileDrawning(drawingBoard)
 }
 
 func maxXTile(coordinateList []coordinate) int {
@@ -129,14 +131,17 @@ func maxYTile(coordinateList []coordinate) int {
 // Alright let's leave drawing, I literally don't have enough RAM
 
 func execC9Two(coordinateList []coordinate) {
-	yMap, xMap := createXYMaps(coordinateList)
+	yCompressed, xCompressed := compressCoordinates(coordinateList)
+	compressedList := mapCoordinates(coordinateList, yCompressed, xCompressed)
+
+	yMap, xMap := createXYMaps(compressedList)
 	horizontalRanges := createHorizontalTileRanges(yMap)
 	verticalRanges := createVerticalTileRanges(xMap)
 
-	//draw(coordinateList, append(horizontalRanges, verticalRanges...))
+	draw(compressedList, append(horizontalRanges, verticalRanges...))
 
-	areas := calculateAllValidTileAreas(coordinateList, horizontalRanges, verticalRanges)
-	fmt.Println(areas[0:5])
+	/*areas := calculateAllValidTileAreas(coordinateList, horizontalRanges, verticalRanges)
+	fmt.Println(areas[0:5])*/
 }
 
 func createXYMaps(coordinateList []coordinate) (map[int][]coordinate, map[int][]coordinate) {
@@ -308,3 +313,72 @@ func updateBorders(validationMap *validCoordinateMap, point coordinate, border c
 		validationMap.hasBottomBorder = true
 	}
 }
+
+// Alright new try
+
+// 1. Compress
+func compressCoordinates(coordinateList []coordinate) (map[int]int, map[int]int) {
+	yMap := make(map[int]int, len(coordinateList))
+	xMap := make(map[int]int, len(coordinateList))
+
+	slices.SortFunc(coordinateList, func(a, b coordinate) int {
+		return a.y - b.y
+	})
+
+	var i, j int
+
+	for _, c := range coordinateList {
+		if _, ok := yMap[c.y]; !ok {
+			yMap[c.y] = i
+			i++
+		}
+	}
+
+	slices.SortFunc(coordinateList, func(a, b coordinate) int {
+		return a.x - b.x
+	})
+
+	for _, c := range coordinateList {
+		if _, ok := xMap[c.x]; !ok {
+			xMap[c.x] = j
+			j++
+		}
+	}
+
+	fmt.Printf("Compressed to y:%d, x:%d\n", i, j)
+	return yMap, xMap
+}
+
+func mapCoordinates(coordinateList []coordinate, yMap, xMap map[int]int) []coordinate {
+	compressedList := make([]coordinate, 0, len(coordinateList))
+
+	for _, c := range coordinateList {
+		compressed := coordinate{xMap[c.x], yMap[c.y]}
+		compressedList = append(compressedList, compressed)
+	}
+
+	return compressedList
+}
+
+func unmapCoordinate(coor coordinate, yMap, xMap map[int]int) coordinate {
+	var y, x int
+
+	for keyY, valY := range yMap {
+		if coor.y == valY {
+			y = keyY
+			break
+		}
+	}
+
+	for keyX, valX := range xMap {
+		if coor.x == valX {
+			x = keyX
+		}
+	}
+
+	return coordinate{x, y}
+}
+
+// 2. Draw attempt
+
+// 3. Intersection attempt

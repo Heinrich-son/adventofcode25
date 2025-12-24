@@ -15,17 +15,17 @@ func readFile[T any](path string, mapper func([]byte) T) T {
 	return mapper(content)
 }
 
-func writeTileDrawning(drawing []rune, maxY int, maxX int) {
-	f, err := os.OpenFile("assets/out.txt", 2|64, 0666)
+func writeTileDrawning(drawingBoard [][]rune) {
+	f, err := os.OpenFile("assets/out.txt", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		panic(err)
 	}
 
 	defer f.Close()
 
-	for l := range maxY {
-		str := string(drawing[l*maxY : maxX])
-		_, err := f.WriteString(str)
+	for _, line := range drawingBoard {
+		str := string(line)
+		_, err := f.WriteString(str + "\n")
 		if err != nil {
 			panic(err)
 		}
