@@ -19,12 +19,13 @@ total presses to reach the wanted indicator state
 */
 
 func runC10() {
-	indicatorList := readFile("c10.txt", mapToIndicatorList)
+	indicatorList := readFile("c10_test.txt", mapToIndicatorList)
 	/*for _, indicator := range indicatorList {
 		indicator.displayInitial()
 	}*/
 
-	execC10(indicatorList)
+	//execC10(indicatorList)
+	execC10Two(indicatorList)
 }
 
 func mapToIndicatorList(content []byte) (indicatorList []indicator_S) {
@@ -92,7 +93,7 @@ func mapToIndicatorList(content []byte) (indicatorList []indicator_S) {
 		buttonSetList := parseButton(buttonSlice)
 		joltageSet := parseJoltage(joltageString)
 
-		indicator := indicator_S{joltageSet: joltageSet, buttonSetList: buttonSetList}.fromRunes(indicatorRunes)
+		indicator := indicator_S{joltageSet: joltageSet, remainingJoltage: joltageSet, buttonSetList: buttonSetList, joltageCache: make(map[int][]int, 10)}.fromRunes(indicatorRunes)
 		indicatorList = append(indicatorList, *indicator)
 	}
 
@@ -103,6 +104,10 @@ type indicator_S struct {
 	closingValue int
 	currentValue int
 
+	joltagePresses   int
+	remainingJoltage []int
+	joltageCache     map[int][]int
+
 	closingRunes  []rune
 	joltageSet    []int
 	buttonSetList [][]int
@@ -112,11 +117,7 @@ func (i indicator_S) fromRunes(r []rune) *indicator_S {
 	rTrimmed := r[1 : len(r)-1]
 
 	i.closingRunes = make([]rune, len(rTrimmed))
-	//temp := make([]rune, len(rTrimmed))
 	copy(i.closingRunes, rTrimmed)
-	//copy(temp, rTrimmed)
-
-	//slices.Reverse(temp)
 
 	acc := 0
 	for x := range len(i.closingRunes) {
@@ -131,7 +132,7 @@ func (i indicator_S) fromRunes(r []rune) *indicator_S {
 }
 
 func (i *indicator_S) displayInitial() {
-	fmt.Println(i.toStringClosing(), i.closingValue, i.buttonSetList, i.joltageSet)
+	fmt.Println(i.toStringClosing(), i.closingValue, i.buttonSetList, i.joltageSet, i.getJoltageParity())
 }
 
 func (i *indicator_S) toString() string {
@@ -149,6 +150,22 @@ func (i *indicator_S) toString() string {
 
 func (i *indicator_S) toStringClosing() string {
 	return "[" + string(i.closingRunes) + "]"
+}
+
+func (i *indicator_S) getJoltageParity() int {
+	return getJoltageParity(i.remainingJoltage)
+}
+
+func getJoltageParity(joltageSet []int) int {
+	acc := 0
+	for i, joltage := range joltageSet {
+		if parity := joltage % 2; parity == 1 {
+			power := int(math.Pow(2, float64(i)))
+			acc += power
+		}
+	}
+
+	return acc
 }
 
 func execC10(indicatorList []indicator_S) {
@@ -169,7 +186,7 @@ func execC10(indicatorList []indicator_S) {
 
 func calculateCombinations(indicator indicator_S) int {
 	unfilteredIndexCombinations := startGeneratingIndexCombinations(len(indicator.buttonSetList))
-	indexCombinations := filterIndexCombinations(unfilteredIndexCombinations)
+	indexCombinations := sortIndexCombinations(unfilteredIndexCombinations)
 	buttonPresses := 0
 
 	for _, indexCombination := range indexCombinations {
@@ -213,7 +230,7 @@ func generateCombinations(set []int, index int, current []int, combinations *[][
 	generateCombinations(set, index+1, append(current, set[index]), combinations)
 }
 
-func filterIndexCombinations(indexCombinations [][]int) [][]int {
+func sortIndexCombinations(indexCombinations [][]int) [][]int {
 	var filteredIndexCombinations [][]int
 
 	for _, combination := range indexCombinations {
@@ -236,4 +253,151 @@ func filterIndexCombinations(indexCombinations [][]int) [][]int {
 	})
 
 	return filteredIndexCombinations
+}
+
+func execC10Two(indicatorList []indicator_S) {
+	acc := 0
+	for i, indicator := range indicatorList {
+		if i == 2 {
+			calculateJoltagePresses(&indicator)
+			fmt.Println(indicator.joltagePresses)
+			acc += indicator.joltagePresses
+		}
+	}
+
+	fmt.Println("Solution 2:", acc)
+}
+
+func generateCombinationsRepeat(n, k int) [][]int {
+	var result [][]int
+	var comb []int
+
+	var dfs func(start int)
+	dfs = func(start int) {
+		if len(comb) > 0 {
+			result = append(result, append([]int{}, comb...))
+		}
+
+		if len(comb) == k {
+			return
+		}
+
+		for i := start; i < n; i++ {
+			comb = append(comb, i)
+			dfs(i)
+			comb = comb[:len(comb)-1]
+		}
+	}
+
+	dfs(0)
+	return result
+}
+
+func calculateJoltagePresses(indicator *indicator_S) {
+	if zeroedJoltage(indicator.remainingJoltage...) {
+		return
+	}
+
+	calculatedValue, combination := findCombination(indicator)
+	fmt.Print(indicator.remainingJoltage)
+
+	if calculatedValue != math.MaxInt && combination != nil {
+		indicator.joltageCache[calculatedValue] = combination
+		for _, index := range combination {
+			// select the buttonSet via index
+			buttonSet := indicator.buttonSetList[index]
+			fmt.Print(" (", buttonSet, ")")
+			// iterate over all button values within the set
+			for _, buttonValue := range buttonSet {
+				indicator.remainingJoltage[buttonValue] = indicator.remainingJoltage[buttonValue] - 1
+			}
+		}
+		fmt.Print(" => ", indicator.remainingJoltage)
+		halfJoltage(indicator.remainingJoltage)
+		fmt.Print(" => ", indicator.remainingJoltage, "\n")
+		calculateJoltagePresses(indicator)
+		indicator.joltagePresses = len(combination) + 2*indicator.joltagePresses
+	} else {
+		indicator.joltagePresses += bruteForceJoltagePresses(indicator)
+	}
+}
+
+func findCombination(indicator *indicator_S) (int, []int) {
+	if cachedCombination, ok := indicator.joltageCache[indicator.getJoltageParity()]; ok {
+		return indicator.getJoltageParity(), cachedCombination
+	}
+
+	combinationList := sortIndexCombinations(generateCombinationsRepeat(len(indicator.buttonSetList), slices.Max(indicator.joltageSet)))
+
+	// iterate over all index combinations
+	for _, combination := range combinationList {
+		calculatedValue := 0
+
+		for _, index := range combination {
+			// select the buttonSet via index
+			buttonSet := indicator.buttonSetList[index]
+			// iterate over all button values within the set
+			for _, buttonValue := range buttonSet {
+				temp := calculatedValue
+				calculatedValue = temp ^ int(math.Pow(2, float64(buttonValue)))
+			}
+		}
+
+		if calculatedValue == indicator.getJoltageParity() {
+			return calculatedValue, combination
+		}
+
+	}
+
+	return math.MaxInt, nil
+}
+
+func halfJoltage(joltageSet []int) []int {
+	for i := range joltageSet {
+		joltageSet[i] = joltageSet[i] / 2
+	}
+
+	return joltageSet
+}
+
+func bruteForceJoltagePresses(indicator *indicator_S) int {
+	maxPresses := slices.Max(indicator.remainingJoltage) * 2
+	combinationList := sortIndexCombinations(generateCombinationsRepeat(len(indicator.buttonSetList), maxPresses))
+
+	for _, combination := range combinationList {
+		remainingJoltage := make([]int, len(indicator.remainingJoltage))
+		copy(remainingJoltage, indicator.remainingJoltage)
+
+		calculatedValue := 0
+		for _, index := range combination {
+			buttonSet := indicator.buttonSetList[index]
+			for _, buttonValue := range buttonSet {
+				temp := calculatedValue
+				calculatedValue = temp ^ int(math.Pow(2, float64(buttonValue)))
+
+				remainingJoltage[buttonValue] = remainingJoltage[buttonValue] - 1
+			}
+		}
+
+		if zeroedJoltage(remainingJoltage...) {
+			indicator.joltageCache[calculatedValue] = combination
+			return len(combination)
+		}
+	}
+
+	// should not happen
+	return math.MaxInt
+}
+
+func zeroedJoltage(joltage ...int) bool {
+	for _, j := range joltage {
+		if j != 0 {
+			return false
+		}
+		if j < 0 {
+			panic("Error invalid joltage found")
+		}
+	}
+
+	return true
 }
